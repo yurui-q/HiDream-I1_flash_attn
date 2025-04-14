@@ -7,10 +7,15 @@ from hi_diffusers.schedulers.flash_flow_match import FlashFlowMatchEulerDiscrete
 from transformers import LlamaForCausalLM, PreTrainedTokenizerFast
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_type", type=str, default="dev")
+parser.add_argument("--use_quantize_model", action="store_true", help="Whether to use the quantized model")   
+parser.add_argument("--cpu_offload", action="store_true", help="Whether to enable cpu_offload")   
 args = parser.parse_args()
 model_type = args.model_type
 MODEL_PREFIX = "HiDream-ai"
-LLAMA_MODEL_NAME = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+if args.use_quantize_model:
+    LLAMA_MODEL_NAME = "hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4"
+else:
+    LLAMA_MODEL_NAME = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 
 # Model configurations
 MODEL_CONFIGS = {
@@ -52,6 +57,8 @@ RESOLUTION_OPTIONS = [
 def load_models(model_type):
     config = MODEL_CONFIGS[model_type]
     pretrained_model_name_or_path = config["path"]
+    if args.use_quantize_model:
+        pretrained_model_name_or_path = f"{pretrained_model_name_or_path}-nf4"
     scheduler = MODEL_CONFIGS[model_type]["scheduler"](num_train_timesteps=1000, shift=config["shift"], use_dynamic_shifting=False)
     
     tokenizer_4 = PreTrainedTokenizerFast.from_pretrained(
@@ -62,22 +69,29 @@ def load_models(model_type):
         LLAMA_MODEL_NAME,
         output_hidden_states=True,
         output_attentions=True,
-        torch_dtype=torch.bfloat16).to("cuda")
+        device_map="auto",
+        torch_dtype=torch.bfloat16)
 
     transformer = HiDreamImageTransformer2DModel.from_pretrained(
         pretrained_model_name_or_path, 
         subfolder="transformer", 
-        torch_dtype=torch.bfloat16).to("cuda")
-
+        device_map="auto",
+        torch_dtype=torch.bfloat16)  
+    
     pipe = HiDreamImagePipeline.from_pretrained(
         pretrained_model_name_or_path, 
         scheduler=scheduler,
         tokenizer_4=tokenizer_4,
         text_encoder_4=text_encoder_4,
         torch_dtype=torch.bfloat16
-    ).to("cuda", torch.bfloat16)
+    )
     pipe.transformer = transformer
-    
+    pipe.text_encoder.to(torch.bfloat16)
+    pipe.text_encoder_2.to(torch.bfloat16)
+    if args.cpu_offload:
+        pipe.enable_sequential_cpu_offload()    
+    else:
+        pipe.to("cuda") 
     return pipe, config
 
 # Parse resolution string to get height and width
@@ -128,7 +142,7 @@ def generate_image(pipe, model_type, prompt, resolution, seed):
     return images[0], seed
 
 # Initialize with default model
-print("Loading default model (full)...")
+print(f"Loading default model ({model_type})...")
 pipe, _ = load_models(model_type)
 print("Model loaded successfully!")
 prompt = "A cat holding a sign that says \"Hi-Dreams.ai\"." 

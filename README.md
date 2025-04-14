@@ -56,7 +56,17 @@ We also provide a Gradio demo for interactive image generation. You can run the 
 python gradio_demo.py 
 ```
 
+## Low Memory Inference
+Users with limited memory could download the 4-bit quantized model and/or enable cpu_offload to reduce GPU memory.
+- Add `--use_quantize_model` to use 4-bit quantized model.
+- Add `--cpu_offload` to enable cpu_offload/
 
+Note: users should manually download `hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4` model to replace the original `meta-llama/Llama-3.1-8B-Instruct` model. For quantized T5 model, we use the checkpoint from `comfyanonymous/flux_text_encoders`.
+
+The occupied memory in NVIDIA-A800 is shown below:
+|  Setting              | Default                  | NF4                     | cpu_offload       | NF4 + cpu_offload  |
+|----------------|----------------------|-----------------------|-------------------------|-------------------|
+|   Memory             | 65165MB    |  28337MB  | 35341MB  | 14615MB        |
 
 ## Evaluation Metrics
 
