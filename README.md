@@ -66,8 +66,8 @@ Note: users should manually download `hugging-quants/Meta-Llama-3.1-8B-Instruct-
 The occupied memory in NVIDIA-A800 is shown below:
 |  Setting              | Default                  | NF4                     | cpu_offload       | NF4 + cpu_offload  |
 |----------------|----------------------|-----------------------|-------------------------|-------------------|
-|   Memory             | 65165MB    |  28337MB  | 35341MB  | 14615MB        |
-
+|   Memory             | 65G    |  28G  | 35341MB  | 15G        |
+35G
 ## Evaluation Metrics
 
 ### DPG-Bench
